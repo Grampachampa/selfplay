@@ -27,8 +27,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-master.yaml
-pull_request.yaml
+*.yaml
 MANIFEST
 
 # PyInstaller
