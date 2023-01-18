@@ -10,7 +10,17 @@ from collections import deque
 from model import Linear_QNet, QTrainer
 from helper import plot
 
-
+# in order of prio:
+# TODO: Done only true when 7-point match is "done" - give points on win, give massive points on won: points lost/gained on individual win/loss; 
+    # + Points earned on won round
+    # + (remaining enemy points) points on win match    (triggers "done" condition)
+    # - remaining points on loss                        (triggers "done" condition)
+'''# TODO: I think len(tensor) should be enough'''
+'''# TODO: Save - Save every 50th generation w/ automated labelling - rework save function and the calling thereof'''
+# TODO: Make selfplay read a specific file 
+# TODO: Make/rework comments 
+# TODO: Rework plot to reflect just total reward, ig - least important
+# TODO: Make len_outputs unfucked
 
 class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
@@ -29,20 +39,27 @@ class SelfPlay (Bot):
         self.memory = deque(maxlen=self.MAX_MEMORY)
         self.model = None
         self.trainer = None
-        
+ 
 
-    
-        #TODO model, trainer
-
-    def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):
-        self.model = Linear_QNet(len(inputs.size()), 256, len(outputs))
+    def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):        
+        self.model = Linear_QNet(len(inputs), 256, len(outputs))
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
         # random move: tradeoff exploration / exploitation
-        self.randomness = 80 - self.number_of_games
+        self.epsilon = 80 - self.number_of_games
         state = player_perspective
-        moves = state.valid_moves
+        moves = state.valid_moves()
+
+        regular_moves: List[RegularMove] = [i for i in moves if type(i) == RegularMove]
+        trump_moves: List[Trump_Exchange] = [i for i in moves if type(i) == Trump_Exchange]
+        marriage_moves: List[Marriage] = [i for i in moves if type(i) == Marriage]
+        
+        regular_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+        trump_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+        marriage_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+
+        moves = regular_moves + trump_moves + marriage_moves 
 
         final_move = moves[0]
 
@@ -79,9 +96,6 @@ class SelfPlay (Bot):
 
 
 
-
-
-        
 
 class TrainingEngine(SchnapsenGamePlayEngine):
 
@@ -202,6 +216,7 @@ def train():
 
             if trick_counter == 1:
                 old_state_actions_representation = create_state_and_actions_vector_representation(player_perspective = final_state, leader_move = leader_move, follower_move = follower_move)
+                continue
             
             new_state_actions_representation = create_state_and_actions_vector_representation(player_perspective = final_state, leader_move = leader_move, follower_move = follower_move)
             
@@ -216,9 +231,9 @@ def train():
                 main_bot.number_of_games += 1
                 main_bot.train_long_memory()
                 
-                # TODO: if score > record
-                #   record = score
-                #   main_bot.model.save()
+                if main_bot.number_of_games%50:
+                    most_recent = main_bot.number_of_games
+                    main_bot.model.save(iter=main_bot.number_of_games)
 
                 print(f"Game: {main_bot.number_of_games} - Won: {winner_declaration}")
 
@@ -227,6 +242,8 @@ def train():
                 mean_score = total_score / main_bot.number_of_games
                 plot_mean_scores.append(mean_score)
                 plot(plot_scores, plot_mean_scores)
+            
+            old_state_actions_representation = new_state_actions_representation
 
    
 
@@ -403,8 +420,9 @@ def get_state_feature_vector(player_perspective: PlayerPerspective) -> List[int]
     # There are all different cases regarding card's knowledge, and we represent these 6 cases using one hot encoding vectors as seen bellow.
 
     deck_knowledge_in_consecutive_one_hot_encodings: list[int] = []
+    sdg = SchnapsenDeckGenerator()
 
-    for card in SchnapsenDeckGenerator.get_initial_deck():
+    for card in sdg.get_initial_deck():
         card_knowledge_in_one_hot_encoding: list[int]
         # i) on player's hand
         if card in hand_cards:
