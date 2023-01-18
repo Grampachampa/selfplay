@@ -14,6 +14,7 @@ import alphabeta
 # in order of prio:
 # TODO: Done only true when 7-point match is "done" - give points on win, give massive points on won: points lost/gained on individual win/loss; 
     # + Points earned on won round
+    # - enemy points on lost round
     # + (remaining enemy points) points on win match    (triggers "done" condition)
     # - remaining points on loss                        (triggers "done" condition)
 '''# TODO: I think len(tensor) should be enough'''
@@ -21,7 +22,7 @@ import alphabeta
 # TODO: Make selfplay read a specific file 
 # TODO: Make/rework comments 
 # TODO: Rework plot to reflect just total reward, ig - least important
-# TODO: Make len_outputs consistent
+'''# TODO: Make len_outputs consistent'''
 # TODO 
 
 class SelfPlay (Bot):
@@ -43,7 +44,7 @@ class SelfPlay (Bot):
         self.trainer = None
  
 
-    def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):        
+    def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):       
         self.model = Linear_QNet(len(inputs), 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         
@@ -74,7 +75,7 @@ class SelfPlay (Bot):
         final_move = moves[0]
 
         if random.randint(0,200) < self.epsilon:
-            final_move = moves[random.randint(0,len(moves))]
+            final_move = moves[random.randint(0,len(moves)-1)]
         else:
             
             state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
@@ -88,6 +89,9 @@ class SelfPlay (Bot):
                 move_index -= len(moves)
 
             final_move = moves[move_index]
+
+        print(moves, leader_move)
+        print(final_move)
 
         return final_move
 
@@ -109,7 +113,7 @@ class SelfPlay (Bot):
 
 
 
-
+# It uses this engine to train
 class TrainingEngine(SchnapsenGamePlayEngine):
 
     def play_game(self, bot1: Bot, bot2: Bot, rng: Random) -> Tuple[Bot, int, Score]:

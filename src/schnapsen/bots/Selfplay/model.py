@@ -9,15 +9,16 @@ class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
 
-        print (type(input_size), type(hidden_size), type(output_size))
+        #print (type(input_size), type(hidden_size), type(output_size))
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, output_size)
 
-        print (type(self.linear1))
+        #print (type(self.linear1))
 
-    def forward(self, x):
-        print (type(x))
+    def forward(self, x: torch.Tensor):
+        x = x.float()
         x = F.relu(self.linear1(x))
+        
         x = self.linear2(x)
         return x
     
@@ -50,10 +51,10 @@ class QTrainer:
 
         if len(state.shape) == 1:
             # (1, x)
-            state = torch.unsqieeze(state, 0)
-            next_state = torch.unsqieeze(next_state, 0)
-            action = torch.unsqieeze(action, 0)
-            reward = torch.unsqieeze(reward, 0)
+            state = torch.unsqueeze(state, 0)
+            next_state = torch.unsqueeze(next_state, 0)
+            action = torch.unsqueeze(action, 0)
+            reward = torch.unsqueeze(reward, 0)
             done = (done, )
 
         # 1: predicted Q values with current state
