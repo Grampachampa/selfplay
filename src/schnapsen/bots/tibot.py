@@ -1,7 +1,7 @@
 from typing import Optional
 from schnapsen.game import Bot, PlayerPerspective, Move, SchnapsenGamePlayEngine, SchnapsenTrickScorer, GamePhase
 from schnapsen.bots import RandBot
-from schnapsen.
+from schnapsen.bots.exercise1 import MyBot
 import random
 
 
@@ -13,6 +13,7 @@ class Tibor(Bot):
     '''
     def get_move(self, state: PlayerPerspective, leader_move: Optional[Move], ) -> Move:
         moves = state.valid_moves()
+
         chosen_move = moves[0]
 
         # once the stock is exhausted
@@ -64,12 +65,3 @@ class Tibor(Bot):
         print('Tibot', chosen_move, state.get_my_score().direct_points)
 
         return chosen_move
-
-
-engine = SchnapsenGamePlayEngine()
-bot1 = Tibor()
-bot2 = ()
-# bot1 = s.make_gui_bot(name="mybot1")
-for i in range(10):
-    print('New Game')
-    engine.play_game(bot1, bot2, random.Random(2))
