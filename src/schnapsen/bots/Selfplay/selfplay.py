@@ -9,6 +9,7 @@ import os
 from collections import deque
 from model import Linear_QNet, QTrainer
 from helper import plot
+import alphabeta
 
 # in order of prio:
 # TODO: Done only true when 7-point match is "done" - give points on win, give massive points on won: points lost/gained on individual win/loss; 
@@ -20,7 +21,8 @@ from helper import plot
 # TODO: Make selfplay read a specific file 
 # TODO: Make/rework comments 
 # TODO: Rework plot to reflect just total reward, ig - least important
-# TODO: Make len_outputs unfucked
+# TODO: Make len_outputs consistent
+# TODO 
 
 class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
@@ -42,14 +44,22 @@ class SelfPlay (Bot):
  
 
     def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):        
-        self.model = Linear_QNet(len(inputs), 256, len(outputs))
+        self.model = Linear_QNet(len(inputs), 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
+
         # random move: tradeoff exploration / exploitation
         self.epsilon = 80 - self.number_of_games
         state = player_perspective
         moves = state.valid_moves()
+
+        phase = state.get_phase()
+
+        if phase == GamePhase.TWO:
+            ab = alphabeta.AlphaBeta()
+            final_move = ab.get_move()
+            return final_move
 
         regular_moves: List[RegularMove] = [i for i in moves if type(i) == RegularMove]
         trump_moves: List[Trump_Exchange] = [i for i in moves if type(i) == Trump_Exchange]
@@ -73,8 +83,11 @@ class SelfPlay (Bot):
                 self.makemodel(state0, moves)
 
             prediction = self.model(state0)
-            move = torch.argmax(prediction).item()
-            final_move = moves[move]
+            move_index = torch.argmax(prediction).item()
+            while move_index > len(moves)-1:
+                move_index -= len(moves)
+
+            final_move = moves[move_index]
 
         return final_move
 
