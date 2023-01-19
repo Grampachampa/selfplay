@@ -22,20 +22,21 @@ class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
 
     MAX_MEMORY = 100_000
-    BATCH_SIZE = 1000
+    BATCH_SIZE = 10_000
     LR = 0.01
 
     def __init__(self) -> None:
         self.number_of_games = 0
         self.round_number = 0
         self.epsilon = 0
-        self.gamma = 0.9 # discount rate < 1
+        self.gamma = 0.8 # discount rate < 1
         self.trainer = None
         self.memory = deque(maxlen=self.MAX_MEMORY)
         self.model = None
         self.trainer = None
         self.my_match_points = 7
         self.opponent_match_points = 7
+
  
 
     def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):       
@@ -192,12 +193,12 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 
 def train():
     # Base variables
-    plot_winrate_last_50 = []
+    plot_winrate_last_n = []
     plot_winrate_all_time = []
     mywins = 0
-    
-    last_50 = []
+    last_n = []
 
+    n = 5
     
     final_reward = 0
     reward = 0
@@ -333,28 +334,29 @@ def train():
             if winner_declaration:
                 mywins += 1
 
-            if main_bot.number_of_games <= 50:
-                last_50.append(winner_declaration)
+            if main_bot.number_of_games <= n:
+                last_n.append(winner_declaration)
                 tracking_length = main_bot.number_of_games
             else:
-                del last_50[0]
-                last_50.append(winner_declaration)
-                tracking_length = 50
+                del last_n[0]
+                last_n.append(winner_declaration)
+                tracking_length = n
             
 
             
-                
-                 
+            # plot - 
+        
             plot_winrate_all_time.append(mywins/main_bot.number_of_games)
-            plot_winrate_last_50.append(len([i for i in last_50 if i == True])/tracking_length)
+            plot_winrate_last_n.append(len([i for i in last_n if i == True])/tracking_length)
 
             # one line represents winrate over last 50 games, other line represents total winrate vs opponent
-            plot(plot_winrate_all_time, plot_winrate_last_50)
+            plot(plot_winrate_all_time, plot_winrate_last_n)
             old_state_actions_representation = new_state_actions_representation
 
 
 
 
+# shamelessly ripped from mlbot
 def create_state_and_actions_vector_representation(player_perspective: PlayerPerspective, leader_move: Optional[Move], follower_move: Optional[Move]) -> List[int]:
     """
     This function takes as input a PlayerPerspective variable, and the two moves of leader and follower,
