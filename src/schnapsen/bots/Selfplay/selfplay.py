@@ -32,16 +32,12 @@ class SelfPlay (Bot):
         self.gamma = 0.8 # discount rate < 1
         self.trainer = None
         self.memory = deque(maxlen=self.MAX_MEMORY)
-        self.model = None
-        self.trainer = None
+        self.model = Linear_QNet(173, 256, 8)
+        self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         self.my_match_points = 7
         self.opponent_match_points = 7
 
- 
 
-    def makemodel(self, inputs:torch.Tensor, outputs: List[Move]):       
-        self.model = Linear_QNet(len(inputs), 256, 8)
-        self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
 
@@ -68,26 +64,28 @@ class SelfPlay (Bot):
 
 
         # for first 50 gen, it will make random moves sometimes, just to get more data
-        if random.randint(0,200) < self.epsilon:
-            final_move = moves[random.randint(0,len(moves)-1)]
+        if random.randint(0,100) < self.epsilon:
+            index = random.randint(0,len(moves)-1)
+            final_move = moves[index]
 
 
         # otherwise, it gets spicy
         else:
             state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
 
-            # initialize model if it doesn't already exist
-            if self.model == None:
-                self.makemodel(state0, moves)
-
             # get prediction from model, convert it to index in list of moves, and return final move
             prediction = self.model(state0)
+            
             move_index = torch.argmax(prediction).item()
+            
+            print (move_index,prediction) # TODO: FIX CONVERGENCE OF MOVE INDEX ON 0!!!!!!
             
             while move_index > len(moves)-1:
                 move_index -= len(moves)
 
             final_move = moves[move_index]
+
+            
         return final_move
 
 
@@ -101,11 +99,12 @@ class SelfPlay (Bot):
             mini_sample = random.sample(self.memory, self.BATCH_SIZE) # list of tuples
         else:
             mini_sample = self.memory
+        
 
-        #states, actions, rewards, next_states, done = zip(*mini_sample)
-        #self.trainer.train_step(states, actions, rewards, next_states, done)
-        for state, action, reward, next_state, done in mini_sample:
-            self.trainer.train_step(state, action, reward, next_state, done)
+        states, actions, rewards, next_states, dones = zip(*mini_sample)
+
+        self.trainer.train_step(states, actions, rewards, next_states, dones)
+
         
     # Short Memory; works like a charm
     def train_short_memory(self, state, move_index, reward, next_state, done):
@@ -197,6 +196,8 @@ def train():
     plot_winrate_all_time = []
     mywins = 0
     last_n = []
+    reward_list = []
+    plot_reward_average = []
 
     n = 5
     
@@ -318,6 +319,9 @@ def train():
 
             print(f"Game: {main_bot.number_of_games} - Score: {main_bot.my_match_points} : {main_bot.opponent_match_points}; match won: {match_winner} in {main_bot.round_number} rounds- reward: {final_reward}\n======================================")
             
+            # log reward
+            reward_list.append(reward)
+
             # reset params
             main_bot.my_match_points = 7
             main_bot.opponent_match_points = 7
@@ -345,12 +349,15 @@ def train():
 
             
             # plot - 
-        
+            plot_reward_average.append(sum(reward_list)/len(reward_list))
             plot_winrate_all_time.append(mywins/main_bot.number_of_games)
             plot_winrate_last_n.append(len([i for i in last_n if i == True])/tracking_length)
 
             # one line represents winrate over last 50 games, other line represents total winrate vs opponent
-            plot(plot_winrate_all_time, plot_winrate_last_n)
+            plot( # comment one out
+                plot_winrate_all_time, 
+                #plot_winrate_last_n, 
+                plot_reward_average)
             old_state_actions_representation = new_state_actions_representation
 
 
