@@ -9,17 +9,18 @@ class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
 
-        #print (type(input_size), type(hidden_size), type(output_size))
+        #print (input_size, hidden_size, output_size)
         self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        self.linear3 = nn.Linear(hidden_size, output_size)
 
         #print (type(self.linear1))
 
     def forward(self, x: torch.Tensor):
         x = x.float()
         x = F.relu(self.linear1(x))
-        
         x = self.linear2(x)
+        x = self.linear3(x)
         return x
     
     def save(self, iter,  file_name = 'snapshot.pth'):
@@ -56,19 +57,25 @@ class QTrainer:
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
             done = (done, )
+            #print (done)
 
         # 1: predicted Q values with current state
         pred = self.model(state)
 
         target = pred.clone()
 
-        
+        #print(len(done))
         for i in range(len(done)):
             Q_new = reward[i]
             if not done[i]: # this WILL fuck you
                 Q_new = reward[i] + self.gamma * torch.max(self.model(next_state[i]))
+
+            #print(f"target [{i}][ {action.size()}] = {Q_new}")
             
-            target[i][torch.argmax(action.item())] = Q_new
+            
+            
+            target[i][torch.argmax(action)] = Q_new
+
 
         # 2: Q_new = r + y * max(next_predicted Q value) -> only if not done
         # pred.clone()
