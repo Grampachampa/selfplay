@@ -11,14 +11,19 @@ from model import Linear_QNet, QTrainer
 from helper import plot
 import alphabeta
 
+
+
+
+# TODO: mess around with variables to create better
+# TODO: make bot read from file - make opponent random past iteration
+# TODO: find a way to keep track of the game's score internally - at the moment only the trainer keeps track while the bot can not do so on it's own
+
 class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
 
     MAX_MEMORY = 100_000
     BATCH_SIZE = 1000
     LR = 0.01
-
-
 
     def __init__(self) -> None:
         self.number_of_games = 0
@@ -85,9 +90,9 @@ class SelfPlay (Bot):
         return final_move
 
 
-    # remember state TODO: FIX train step
+
     def remember(self, state, move_index, reward, next_state, done):
-        self.memory.append((state, move_index, reward, next_state, done ))
+        self.memory.append((state, move_index, reward, next_state, done))
 
     # train long memory
     def train_long_memory(self):
@@ -193,7 +198,7 @@ def train():
     
     last_50 = []
 
-    # TODO: Reward system
+    
     final_reward = 0
     reward = 0
     
@@ -343,6 +348,7 @@ def train():
             plot_winrate_all_time.append(mywins/main_bot.number_of_games)
             plot_winrate_last_50.append(len([i for i in last_50 if i == True])/tracking_length)
 
+            # one line represents winrate over last 50 games, other line represents total winrate vs opponent
             plot(plot_winrate_all_time, plot_winrate_last_50)
             old_state_actions_representation = new_state_actions_representation
 
