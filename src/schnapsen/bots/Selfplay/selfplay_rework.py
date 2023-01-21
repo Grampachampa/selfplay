@@ -27,7 +27,7 @@ class SelfPlay (Bot):
 
     def __init__(self) -> None:
         self.number_of_games = 0
-        self.round_number = 0
+        self.trick_number = 0
         self.epsilon = 0
         self.gamma = 0.8 # discount rate < 1
         self.trainer = None
@@ -37,16 +37,43 @@ class SelfPlay (Bot):
         self.my_match_points = 7
         self.opponent_match_points = 7
 
+        self.current_state0 = None
+        self.next_state0 = None
+        self.move0 = None
+
+        self.reward = 0
+        self.done = False
+
+
 
         
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
+
+        
+        self.trick_number += 1
 
         # define epsilon based on experience
         self.epsilon = 80 - self.number_of_games
         
         # get Valid moves
         state = player_perspective
+     
+        #print(state.get_my_score().direct_points, state.get_opponent_score().direct_points)
+        
+        state_representation = create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
         moves = state.valid_moves()
+
+        self.next_state0 = state_representation
+        self.reward = state.get_my_score().direct_points - state.get_opponent_score().direct_points
+
+        if self.trick_number != 1:
+            self.train_short_memory(self.current_state0, self.move0, self.reward, self.next_state0, self.done)
+            self.remember(self.current_state0, self.move0, self.reward, self.next_state0, self.done)
+
+        # ensure that valid moves are alwyas in a predictable order
+        moves = self.move_order(moves)
+
 
         # check if it's time for some good ol' fashioned AB pruning - if so, prune with extreme predjudice
         phase = state.get_phase()
@@ -56,38 +83,34 @@ class SelfPlay (Bot):
             final_move = ab.get_move()
             return final_move
         '''
-        # ensure that valid moves are alwyas in a predictable order
-        moves = self.move_order(moves)
-
-        # this aint even necessary
-        final_move = moves[0]
-
-
+        
         # for first 50 gen, it will make random moves sometimes, just to get more data
         if random.randint(0,100) < self.epsilon:
-            index = random.randint(0,len(moves)-1)
-            final_move = moves[index]
+            move_index = random.randint(0,len(moves)-1)
+            final_move = moves[move_index]
+            print("(", end="")
 
 
         # otherwise, it gets spicy
         else:
-            state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
-
             # get prediction from model, convert it to index in list of moves, and return final move
             prediction = self.model(state0)
             
             move_index = torch.argmax(prediction).item()
             
-            print (move_index, end='') # TODO: FIX CONVERGENCE OF MOVE INDEX ON 0!!!!!!
+            #print (move_index, end='') # TODO: FIX CONVERGENCE OF MOVE INDEX ON 0!!!!!!
             
             while move_index > len(moves)-1:
                 move_index -= len(moves)
 
             final_move = moves[move_index]
+        
+        self.move0 = move_index
+        print(move_index, end="")
+        self.current_state0 = state_representation
 
             
         return final_move
-
 
 
     def remember(self, state, move_index, reward, next_state, done):
@@ -124,8 +147,6 @@ class SelfPlay (Bot):
 
 
 
-
-# Schnapsen engine refitted to provide more info post-game. Works like a charm
 class TrainingEngine(SchnapsenGamePlayEngine):
 
     def play_game(self, bot1: Bot, bot2: Bot, rng: Random) -> Tuple[Bot, int, Score]:
@@ -190,202 +211,30 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 
 
 
-def train():
-    # Base variables
-    plot_winrate_last_n = []
-    plot_winrate_all_time = []
-    mywins = 0
-    last_n = []
-    reward_list = []
-    plot_reward_average = []
-
-    n = 5
-    
-    final_reward = 0
-    reward = 0
-    
-    # defiing bots, engine, and rng
-    engine = TrainingEngine() 
-    rng = random.Random() # TODO: add seeds to all RNG
-    main_bot = SelfPlay()
-    opponents = (RandBot(rng), RdeepBot(num_samples=4, depth=8, rand=rng))
-    
-    
-    # Training all happens within the following while loop:
-    while True:
-        adversary_bot = random.choice(opponents)
-
-        # create new round from a game match
-        winner, points, score, winner_state, loser_state = engine.play_game(main_bot, adversary_bot, rng)
-        main_bot.round_number += 1
-
-        # see who won and assign reward NOTE: Reward is only applied on the last trick of each round
-        # round winner statements
-        if winner == main_bot:
-            final_state: WinnerPerspective = winner_state
-            reward += points
-            main_bot.my_match_points -= points
-            winner_declaration = True
-            
-        else: 
-            final_state: LoserPerspective = loser_state
-            reward -= points
-            main_bot.opponent_match_points -= points
-            winner_declaration = False
-
-        # match winner statements
-        done = False
-        if main_bot.my_match_points <= 0 or main_bot.opponent_match_points <= 0:
-            done = True
-
-            if main_bot.my_match_points <= 0:
-                match_winner = True
-                reward += main_bot.opponent_match_points + 5
-            
-            else:
-                match_winner = False
-                reward -= main_bot.my_match_points + 5
-        #print(reward)
-                
-            
-        # establish game history and trick counter to read back through the round
-        trick_counter = 0
-        game_history: list[tuple[PlayerPerspective, Trick]] = final_state.get_game_history()
-        game_done = False
-
-        # go through each trick in the round
-        for round_player_perspective, round_trick in game_history:
-            trick_counter+=1
-
-            if round_trick is None or trick_counter == len(game_history):
-                continue
-    
-            # establish variables for vector representation - leader move, follower move, and my move
-            if round_trick.is_trump_exchange():
-                leader_move = round_trick.exchange
-                follower_move = None
-
-            else:
-                leader_move = round_trick.leader_move
-                follower_move = round_trick.follower_move
-            
-            mymove = follower_move
-            
-            # If the agent is the leader, we do not record the response to their move in this trick's state vector 
-            if round_player_perspective.am_i_leader():
-                follower_move = None
-                mymove = leader_move
-            
-            if mymove is None:
-                continue
-            
-            # get current state  
-            old_state_actions_representation = create_state_and_actions_vector_representation(player_perspective = round_player_perspective, leader_move = leader_move, follower_move = follower_move)
-            
-            
-            # get next state
-            next_round_perspective, next_round_trick = game_history[trick_counter]
-
-            # establish variables for vector representation - leader move, follower move, and my move
-
-            if next_round_trick is None:
-                next_follower_move = None
-                next_follower_move = None
-            
-            elif next_round_trick.is_trump_exchange():
-                next_leader_move = next_round_trick.exchange
-                next_follower_move = None
-
-            else:
-                next_leader_move = next_round_trick.leader_move
-                next_follower_move = next_round_trick.follower_move
-            
-            next_mymove = next_follower_move
-            
-            # If the agent is the leader, we do not record the response to their move in this trick's state vector 
-            if next_round_perspective.am_i_leader():
-                next_follower_move = None
-                next_mymove = next_leader_move
-
-            new_state_actions_representation = create_state_and_actions_vector_representation(player_perspective = next_round_perspective, leader_move = next_leader_move, follower_move = next_follower_move)
 
 
 
 
-            # get sorted moves
-            sorrted_moves: List[Move] = main_bot.move_order(round_player_perspective.valid_moves())
-            
-            move_index = sorrted_moves.index(mymove)
-
-            # reward increased at the end of round only, as the outcome is only available then
-            if trick_counter == len(game_history)-1:
-                final_reward = reward
-                game_done = done
-            #print(final_reward)
-            
-            # TODO: No proper state association
-            # train short memory:
-            main_bot.train_short_memory(old_state_actions_representation, move_index, final_reward, new_state_actions_representation, game_done)
-
-            # remember
-            main_bot.remember(old_state_actions_representation, move_index, final_reward, new_state_actions_representation, game_done)
 
 
-        #print(f"Game: {main_bot.number_of_games} - Score: {main_bot.my_match_points} : {main_bot.opponent_match_points} - reward: {final_reward}")
 
 
-        if done:
-            
-            
-            main_bot.train_long_memory()
-
-            if not main_bot.number_of_games%50:
-                most_recent = main_bot.number_of_games
-                main_bot.model.save(iter=main_bot.number_of_games)
-
-            print(f"\nGame: {main_bot.number_of_games} - Score: {main_bot.my_match_points} : {main_bot.opponent_match_points}; match won: {match_winner} in {main_bot.round_number} rounds- reward: {final_reward}\n======================================")
-            
-            # log reward
-            reward_list.append(reward)
-
-            # reset params
-            main_bot.my_match_points = 7
-            main_bot.opponent_match_points = 7
-            main_bot.number_of_games += 1
-            main_bot.round_number = 0
-            final_reward = 0
-            reward = 0
-            done = False
-            game_done = False
-
-            
 
 
-            if winner_declaration:
-                mywins += 1
 
-            if main_bot.number_of_games <= n:
-                last_n.append(winner_declaration)
-                tracking_length = main_bot.number_of_games
-            else:
-                del last_n[0]
-                last_n.append(winner_declaration)
-                tracking_length = n
-            
 
-            
-            # plot - 
-            plot_reward_average.append(sum(reward_list)/len(reward_list))
-            plot_winrate_all_time.append(mywins/main_bot.number_of_games)
-            plot_winrate_last_n.append(len([i for i in last_n if i == True])/tracking_length)
 
-            # one line represents winrate over last 50 games, other line represents total winrate vs opponent
-            plot( # comment one out
-                plot_winrate_all_time, 
-                plot_winrate_last_n, 
-                #plot_reward_average
-                )
-            old_state_actions_representation = new_state_actions_representation
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -589,6 +438,71 @@ def get_state_feature_vector(player_perspective: PlayerPerspective) -> List[int]
     state_feature_list += deck_knowledge_in_consecutive_one_hot_encodings
 
     return state_feature_list
+
+
+def train():
+
+    engine = TrainingEngine() 
+    rng = random.Random()
+    main_bot = SelfPlay()
+    opponents = (RandBot(rng), RdeepBot(num_samples=4, depth=8, rand=rng))
+    
+    plot_winrate_last_n, n = [], 20
+    last_n = []
+    plot_winrate_all_time = []
+    mywins = 0
+    
+    
+    
+    # Training all happens within the following while loop:
+    while True:
+        adversary_bot = random.choice(opponents)
+        winner, points, score, winner_state, loser_state = engine.play_game(main_bot, adversary_bot, rng)
+        main_bot.number_of_games += 1
+
+        if winner == main_bot:
+            main_bot.next_state0 = create_state_and_actions_vector_representation(winner_state, None, None)
+            main_bot.reward = winner_state.get_my_score().direct_points - loser_state.get_my_score().direct_points + 60
+            winner_declaration = True
+            mywins += 1
+
+            
+        else:
+            main_bot.next_state0 = create_state_and_actions_vector_representation(loser_state, None, None)
+            main_bot.reward = loser_state.get_my_score().direct_points - winner_state.get_my_score().direct_points - 60
+            winner_declaration = False
+
+
+        main_bot.train_short_memory(main_bot.current_state0, main_bot.move0, main_bot.reward, main_bot.next_state0, True)
+        main_bot.remember(main_bot.current_state0, main_bot.move0, main_bot.reward, main_bot.next_state0, True)
+        main_bot.train_long_memory()
+
+        main_bot.trick_number = 0
+
+
+        
+        print("\n", winner, points)
+
+
+        if main_bot.number_of_games <= n:
+                last_n.append(winner_declaration)
+                tracking_length = main_bot.number_of_games
+        else:
+            del last_n[0]
+            last_n.append(winner_declaration)
+            tracking_length = n
+            
+
+            
+        plot_winrate_all_time.append(mywins/main_bot.number_of_games)
+        plot_winrate_last_n.append(len([i for i in last_n if i == True])/tracking_length)
+
+        # one line represents winrate over last 50 games, other line represents total winrate vs opponent
+        plot( 
+            plot_winrate_all_time, 
+            plot_winrate_last_n, 
+          )
+
 
 if __name__ == "__main__":
     train()
