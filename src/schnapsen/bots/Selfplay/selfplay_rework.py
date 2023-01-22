@@ -39,7 +39,7 @@ class SelfPlay (Bot):
 
         self.current_state0 = None
         self.next_state0 = None
-        self.move0 = None
+        self.move0 = [0,0,0,0,0,0,0,0]
 
         self.reward = 0
         self.done = False
@@ -65,7 +65,7 @@ class SelfPlay (Bot):
         moves = state.valid_moves()
 
         self.next_state0 = state_representation
-        self.reward = state.get_my_score().direct_points - state.get_opponent_score().direct_points
+        
 
         if self.trick_number != 1:
             self.train_short_memory(self.current_state0, self.move0, self.reward, self.next_state0, self.done)
@@ -73,6 +73,7 @@ class SelfPlay (Bot):
 
         # ensure that valid moves are alwyas in a predictable order
         moves = self.move_order(moves)
+        self.reward = state.get_my_score().direct_points - state.get_opponent_score().direct_points
 
 
         # check if it's time for some good ol' fashioned AB pruning - if so, prune with extreme predjudice
@@ -105,7 +106,9 @@ class SelfPlay (Bot):
 
             final_move = moves[move_index]
         
-        self.move0 = move_index
+        self.move0 = [0,0,0,0,0,0,0,0]
+        self.move0[move_index] = 1
+
         print(move_index, end="")
         self.current_state0 = state_representation
 
@@ -216,29 +219,6 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # shamelessly ripped from mlbot
 def create_state_and_actions_vector_representation(player_perspective: PlayerPerspective, leader_move: Optional[Move], follower_move: Optional[Move]) -> List[int]:
     """
@@ -248,6 +228,8 @@ def create_state_and_actions_vector_representation(player_perspective: PlayerPer
     player_game_state_representation = get_state_feature_vector(player_perspective)
     leader_move_representation = get_move_feature_vector(leader_move)
     follower_move_representation = get_move_feature_vector(follower_move)
+
+    #print(player_game_state_representation , leader_move_representation , follower_move_representation)
 
     return player_game_state_representation + leader_move_representation + follower_move_representation
 
@@ -456,7 +438,7 @@ def train():
     
     # Training all happens within the following while loop:
     while True:
-        adversary_bot = random.choice(opponents)
+        adversary_bot = RandBot(rng)#random.choice(opponents)
         winner, points, score, winner_state, loser_state = engine.play_game(main_bot, adversary_bot, rng)
         main_bot.number_of_games += 1
 
@@ -465,23 +447,26 @@ def train():
             main_bot.reward = winner_state.get_my_score().direct_points - loser_state.get_my_score().direct_points + 60
             winner_declaration = True
             mywins += 1
+            print("\n", "True", end="")
 
             
         else:
             main_bot.next_state0 = create_state_and_actions_vector_representation(loser_state, None, None)
             main_bot.reward = loser_state.get_my_score().direct_points - winner_state.get_my_score().direct_points - 60
             winner_declaration = False
+            print("\n", "False", end="")
 
-
+        #print(main_bot.next_state0)
         main_bot.train_short_memory(main_bot.current_state0, main_bot.move0, main_bot.reward, main_bot.next_state0, True)
         main_bot.remember(main_bot.current_state0, main_bot.move0, main_bot.reward, main_bot.next_state0, True)
         main_bot.train_long_memory()
+        
 
         main_bot.trick_number = 0
 
 
         
-        print("\n", winner, points)
+        print(points)
 
 
         if main_bot.number_of_games <= n:
@@ -502,6 +487,8 @@ def train():
             plot_winrate_all_time, 
             plot_winrate_last_n, 
           )
+
+        #break
 
 
 if __name__ == "__main__":
