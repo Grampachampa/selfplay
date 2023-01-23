@@ -22,15 +22,14 @@ class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
 
     MAX_MEMORY = 100_000
-    BATCH_SIZE = 10_000
+    BATCH_SIZE = 1000
     LR = 0.01
 
     def __init__(self) -> None:
         self.number_of_games = 0
         self.trick_number = 0
         self.epsilon = 0
-        self.gamma = 0.8 # discount rate < 1
-        self.trainer = None
+        self.gamma = 0.9 # discount rate < 1
         self.memory = deque(maxlen=self.MAX_MEMORY)
         self.model = Linear_QNet(173, 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
@@ -43,6 +42,10 @@ class SelfPlay (Bot):
 
         self.reward = 0
         self.done = False
+
+    def save(self):
+        print("Saved!")
+        self.model.save(iter=self.number_of_games, file_name = 'snapshot.pth')
 
 
 
@@ -66,28 +69,37 @@ class SelfPlay (Bot):
 
         self.next_state0 = state_representation
         
+        self.reward = (state.get_my_score().direct_points - state.get_opponent_score().direct_points)/self.trick_number
 
         if self.trick_number != 1:
             self.train_short_memory(self.current_state0, self.move0, self.reward, self.next_state0, self.done)
             self.remember(self.current_state0, self.move0, self.reward, self.next_state0, self.done)
 
+
         # ensure that valid moves are alwyas in a predictable order
         moves = self.move_order(moves)
-        self.reward = state.get_my_score().direct_points - state.get_opponent_score().direct_points
+        
 
 
         # check if it's time for some good ol' fashioned AB pruning - if so, prune with extreme predjudice
         phase = state.get_phase()
+
+
         '''
         if phase == GamePhase.TWO:
-            ab = alphabeta.AlphaBeta()
-            final_move = ab.get_move()
-            return final_move
-        '''
+            ab = alphabeta.AlphaBetaBot()
+            final_move = ab.get_move(player_perspective, leader_move)
+            move_index = moves.index(final_move)
+            '''
+
+
+
+
         
         # for first 50 gen, it will make random moves sometimes, just to get more data
         if random.randint(0,100) < self.epsilon:
             move_index = random.randint(0,len(moves)-1)
+            true_move_index = move_index
             final_move = moves[move_index]
             print("(", end="")
 
@@ -98,8 +110,8 @@ class SelfPlay (Bot):
             prediction = self.model(state0)
             
             move_index = torch.argmax(prediction).item()
+            true_move_index = move_index
             
-            #print (move_index, end='') # TODO: FIX CONVERGENCE OF MOVE INDEX ON 0!!!!!!
             
             while move_index > len(moves)-1:
                 move_index -= len(moves)
@@ -107,10 +119,11 @@ class SelfPlay (Bot):
             final_move = moves[move_index]
         
         self.move0 = [0,0,0,0,0,0,0,0]
-        self.move0[move_index] = 1
+        self.move0[true_move_index] = 1
 
         print(move_index, end="")
         self.current_state0 = state_representation
+
 
             
         return final_move
@@ -213,8 +226,48 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 
 
 
+class ModelReader(Bot):
+
+    def __init__(self, snapshot_path):
+        self.model = Linear_QNet(173, 256, 8)
+        self.model.load_state_dict(torch.load(snapshot_path))
+        self.model.eval()
+
+    def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
+
+        state = player_perspective             
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
+        moves = state.valid_moves()
+        moves = self.move_order(moves)
+
+                
+        # get prediction from model, convert it to index in list of moves, and return final move
+        prediction = self.model(state0)
+            
+        move_index = torch.argmax(prediction).item()
+                        
+        while move_index > len(moves)-1:
+            move_index -= len(moves)
+
+        final_move = moves[move_index]
+           
+        return final_move
 
 
+    
+    # order moves by move type, then suit, then rank (alphabetically, of course. How else would we do it?)
+    def move_order (self, moves: List[Move]):
+        regular_moves: List[RegularMove] = [i for i in moves if type(i) == RegularMove]
+        trump_moves: List[Trump_Exchange] = [i for i in moves if type(i) == Trump_Exchange]
+        marriage_moves: List[Marriage] = [i for i in moves if type(i) == Marriage]
+        
+        regular_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+        trump_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+        marriage_moves.sort(key= lambda a: (str(a._cards()[0].suit), str(a._cards()[0].value[0])))
+
+        return regular_moves + trump_moves + marriage_moves
+
+    
 
 
 
@@ -425,7 +478,7 @@ def get_state_feature_vector(player_perspective: PlayerPerspective) -> List[int]
 def train():
 
     engine = TrainingEngine() 
-    rng = random.Random()
+    rng = random.Random(12)
     main_bot = SelfPlay()
     opponents = (RandBot(rng), RdeepBot(num_samples=4, depth=8, rand=rng))
     
@@ -434,17 +487,32 @@ def train():
     plot_winrate_all_time = []
     mywins = 0
     
-    
+    dirname = os.path.dirname(__file__)
+
+
     
     # Training all happens within the following while loop:
     while True:
-        adversary_bot = RandBot(rng)#random.choice(opponents)
-        winner, points, score, winner_state, loser_state = engine.play_game(main_bot, adversary_bot, rng)
+
+        if main_bot.number_of_games < 51:
+            adversary_bot = opponents[0]
+        
+        else:
+            iter = random.choice([i for i in range(1,main_bot.number_of_games) if not i%50])
+            path = f'./selfplay_snapshots/generation{iter}_snapshot.pth'
+            path = os.path.join(dirname, path)
+            adversary_bot = ModelReader(path)
+
+        players = [main_bot, adversary_bot]
+        random.shuffle(players)
+        winner, points, score, winner_state, loser_state = engine.play_game(players[0], players[1], rng)
+
+
         main_bot.number_of_games += 1
 
         if winner == main_bot:
             main_bot.next_state0 = create_state_and_actions_vector_representation(winner_state, None, None)
-            main_bot.reward = winner_state.get_my_score().direct_points - loser_state.get_my_score().direct_points + 60
+            main_bot.reward = (winner_state.get_my_score().direct_points - loser_state.get_my_score().direct_points + 60)/(main_bot.trick_number+1)
             winner_declaration = True
             mywins += 1
             print("\n", "True", end="")
@@ -452,7 +520,7 @@ def train():
             
         else:
             main_bot.next_state0 = create_state_and_actions_vector_representation(loser_state, None, None)
-            main_bot.reward = loser_state.get_my_score().direct_points - winner_state.get_my_score().direct_points - 60
+            main_bot.reward = (loser_state.get_my_score().direct_points - winner_state.get_my_score().direct_points - 60)/(main_bot.trick_number+1)
             winner_declaration = False
             print("\n", "False", end="")
 
@@ -488,7 +556,11 @@ def train():
             plot_winrate_last_n, 
           )
 
-        #break
+        if not main_bot.number_of_games % 50:
+            main_bot.save()
+            #break
+
+        
 
 
 if __name__ == "__main__":

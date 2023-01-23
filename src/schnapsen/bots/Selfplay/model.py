@@ -26,7 +26,9 @@ class Linear_QNet(nn.Module):
         return x
     
     def save(self, iter,  file_name = 'snapshot.pth'):
-        model_folder_path = './selfplay_snapshots'
+        dirname = os.path.dirname(__file__)
+        model_folder_path = os.path.join(dirname, './selfplay_snapshots')
+        
         file_name = f"generation{iter}_{file_name}"
 
         if not os.path.exists(model_folder_path):

@@ -213,7 +213,7 @@ def train():
     
     # Training all happens within the following while loop:
     while True:
-        adversary_bot = random.choice(opponents)
+        adversary_bot = opponents[0]#random.choice(opponents)
 
         # create new round from a game match
         winner, points, score, winner_state, loser_state = engine.play_game(main_bot, adversary_bot, rng)
@@ -316,19 +316,24 @@ def train():
             sorrted_moves: List[Move] = main_bot.move_order(round_player_perspective.valid_moves())
             
             move_index = sorrted_moves.index(mymove)
+            true_move_index = move_index
 
             # reward increased at the end of round only, as the outcome is only available then
             if trick_counter == len(game_history)-1:
                 final_reward = reward
                 game_done = done
             #print(final_reward)
+
+
+            binary_move = [0,0,0,0,0,0,0,0]
+            binary_move[true_move_index] = 1
             
             # TODO: No proper state association
             # train short memory:
-            main_bot.train_short_memory(old_state_actions_representation, move_index, final_reward, new_state_actions_representation, game_done)
+            main_bot.train_short_memory(old_state_actions_representation, binary_move, final_reward, new_state_actions_representation, game_done)
 
             # remember
-            main_bot.remember(old_state_actions_representation, move_index, final_reward, new_state_actions_representation, game_done)
+            main_bot.remember(old_state_actions_representation, binary_move, final_reward, new_state_actions_representation, game_done)
 
 
         #print(f"Game: {main_bot.number_of_games} - Score: {main_bot.my_match_points} : {main_bot.opponent_match_points} - reward: {final_reward}")
