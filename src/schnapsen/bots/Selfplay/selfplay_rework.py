@@ -23,7 +23,7 @@ class SelfPlay (Bot):
 
     MAX_MEMORY = 100_000
     BATCH_SIZE = 10000
-    LR = 0.1
+    LR = 0.01
 
     def __init__(self) -> None:
         self.number_of_games = 0
