@@ -14,9 +14,7 @@ import alphabeta
 
 
 
-# TODO: REWORK reward/trick system!!!!!!!
-# TODO: make bot read from file - make opponent random past iteration
-# TODO: find a way to keep track of the game's score internally - at the moment only the trainer keeps track while the bot can not do so on it's own
+# TODO: Add comments, typehints, and docstrings
 
 class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""

@@ -45,8 +45,10 @@ class QTrainer:
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr = self.lr)
         self.criterion = nn.MSELoss()
+        self.counter = 0
 
     def train_step(self, state, action, reward, next_state, done):
+        self.counter += 1
         
         state = torch.tensor(state, dtype = torch.float)
         next_state = torch.tensor(next_state, dtype = torch.float)
@@ -64,14 +66,22 @@ class QTrainer:
             #print (done)
 
         # 1: predicted Q values with current state
+        # TODO: Decide on lagging prediction or not
+        
+        if not (self.counter+49)%50:
+            self.lagging_model = self.model
+        
         pred = self.model(state)
+        
+        
+        #pred = self.model(state)
 
-        target = pred.clone()
+        target = self.lagging_model(state)#pred.clone()
 
         #print(len(done))
         for i in range(len(done)):
             Q_new = reward[i]
-            if not done[i]: # this WILL fuck you
+            if not done[i]: 
                 Q_new = reward[i] + self.gamma * torch.max(self.model(next_state[i]))
 
             target[i][torch.argmax(action[i]).item()] = Q_new

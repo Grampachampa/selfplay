@@ -22,14 +22,17 @@ class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
 
     MAX_MEMORY = 100_000
-    BATCH_SIZE = 1000
-    LR = 0.01
+    BATCH_SIZE = 10000
+    LR = 0.1
 
     def __init__(self) -> None:
         self.number_of_games = 0
         self.trick_number = 0
-        self.epsilon = 0
-        self.gamma = 0.9 # discount rate < 1
+        self.max_epsilon = 1000
+        self.epsilon = 1001
+        self.min_epsilon = 10
+        self.epsilon_decay = 1
+        self.gamma = 0.94 # discount rate < 1
         self.memory = deque(maxlen=self.MAX_MEMORY)
         self.model = Linear_QNet(173, 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
@@ -56,7 +59,9 @@ class SelfPlay (Bot):
         self.trick_number += 1
 
         # define epsilon based on experience
-        self.epsilon = 80 - self.number_of_games
+        if self.epsilon > self.min_epsilon: 
+            self.epsilon = self.max_epsilon - (self.number_of_games * self.epsilon_decay)
+        else: self.epsilon = self.min_epsilon
         
         # get Valid moves
         state = player_perspective
@@ -97,7 +102,7 @@ class SelfPlay (Bot):
 
         
         # for first 50 gen, it will make random moves sometimes, just to get more data
-        if random.randint(0,100) < self.epsilon:
+        if random.randint(0,self.max_epsilon) < self.epsilon:
             move_index = random.randint(0,len(moves)-1)
             true_move_index = move_index
             final_move = moves[move_index]
@@ -482,7 +487,7 @@ def train():
     main_bot = SelfPlay()
     opponents = (RandBot(rng), RdeepBot(num_samples=4, depth=8, rand=rng))
     
-    plot_winrate_last_n, n = [], 20
+    plot_winrate_last_n, n = [], 50
     last_n = []
     plot_winrate_all_time = []
     mywins = 0
@@ -565,3 +570,26 @@ def train():
 
 if __name__ == "__main__":
     train()
+'''
+mine = 0
+yours = 0
+
+for i in range(1000):
+    path = './selfplay_snapshots/generation2000_snapshot.pth'
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, path)
+    model = ModelReader(path)
+    rando = RdeepBot(20, 5,random.Random(i))
+    
+    bots = [rando, model]
+    random.shuffle(bots)
+    rng = random.Random(i**2)
+
+    engine = SchnapsenGamePlayEngine()
+
+    winner, points, score = engine.play_game(bots[0],bots[1], rng)
+
+    if winner == model:
+        mine += 1
+    else: yours +=1
+print(mine, yours)'''
