@@ -52,10 +52,14 @@ class QTrainer:
     def train_step(self, state, action, reward, next_state, done):
         self.counter += 1
         
-        state = torch.tensor(state, dtype = torch.float, device="cuda")
-        next_state = torch.tensor(next_state, dtype = torch.float, device="cuda")
-        action = torch.tensor(action, dtype = torch.long, device="cuda")
-        reward = torch.tensor(reward, dtype = torch.float, device="cuda")
+        state = torch.tensor(state, dtype = torch.float#, device="cuda"
+        )
+        next_state = torch.tensor(next_state, dtype = torch.float#, device="cuda"
+        )
+        action = torch.tensor(action, dtype = torch.long#, device="cuda"
+        )
+        reward = torch.tensor(reward, dtype = torch.float#, device="cuda"
+        )
         # (n, x)
 
         if len(state.shape) == 1:

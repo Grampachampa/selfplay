@@ -70,7 +70,8 @@ class SelfPlay (Bot):
         #print(state.get_my_score().direct_points, state.get_opponent_score().direct_points)
         
         state_representation = create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda")
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)#, device="cuda"
+        )
         moves = state.valid_moves()
 
         self.next_state0 = state_representation
@@ -244,7 +245,8 @@ class ModelReader(Bot):
         self.trick_number +=1
 
         state = player_perspective             
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda")
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)#, device="cuda"   
+        )
         moves = state.valid_moves()
         moves = self.move_order(moves)
 
@@ -506,7 +508,7 @@ def train():
             adversary_bot = opponents[0]
         
         else:
-            iter = random.choice([i for i in range(1,main_bot.number_of_games) if not i%50])
+            #iter = random.choice([i for i in range(1,main_bot.number_of_games) if not i%50])
             path = f'./selfplay_snapshots/generation{iter}_snapshot.pth'
             path = os.path.join(dirname, path)
             adversary_bot = ModelReader(path)
@@ -530,7 +532,7 @@ def train():
             main_bot.next_state0 = create_state_and_actions_vector_representation(loser_state, None, None)
             main_bot.reward = (loser_state.get_my_score().direct_points - winner_state.get_my_score().direct_points - 60)/(main_bot.trick_number+1)
             winner_declaration = False
-            print("\n", "False", end="")
+            #print("\n", "False", end="")
 
         #print(main_bot.next_state0)
         main_bot.train_short_memory(main_bot.current_state0, main_bot.move0, main_bot.reward, main_bot.next_state0, True)
@@ -542,6 +544,13 @@ def train():
 
         if not main_bot.number_of_games % 50:
             main_bot.save()
+            iter = main_bot.number_of_games
+            if main_bot.number_of_games > 50:
+                path = f"./selfplay_snapshots/generation{main_bot.number_of_games-50}_snapshot.pth"
+                path = os.path.join(dirname, path)
+                os.remove(path)
+
+
         
         '''
         print(points)
