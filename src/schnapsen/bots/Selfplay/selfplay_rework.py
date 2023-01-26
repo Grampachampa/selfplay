@@ -239,6 +239,8 @@ class ModelReader(Bot):
         self.model = Linear_QNet(173, 256, 8)
         self.model.load_state_dict(torch.load(snapshot_path))
         self.trick_number = 0
+        self.epsilon = 1000
+        self.max_epsilon = 1000
 
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
 
@@ -260,6 +262,14 @@ class ModelReader(Bot):
             move_index -= len(moves)
 
         final_move = moves[move_index]
+
+        if random.randint(0,self.max_epsilon) < self.epsilon:
+            move_index = random.randint(0,len(moves)-1)
+            true_move_index = move_index
+            final_move = moves[move_index]
+            print("random move")
+        else:
+            print("not random")
            
         return final_move
 
@@ -512,6 +522,7 @@ def train():
             path = f'./selfplay_snapshots/generation{iter}_snapshot.pth'
             path = os.path.join(dirname, path)
             adversary_bot = ModelReader(path)
+            adversary_bot.epsilon = main_bot.epsilon
 
         players = [main_bot, adversary_bot]
         random.shuffle(players)
