@@ -26,6 +26,8 @@ class Linear_QNet(nn.Module):
         return x
     
     def save(self, iter,  file_name = 'snapshot.pth'):
+
+        # TODO: Fix saving path
         dirname = os.path.dirname(__file__)
         model_folder_path = os.path.join(dirname, './selfplay_snapshots')
         
@@ -50,10 +52,10 @@ class QTrainer:
     def train_step(self, state, action, reward, next_state, done):
         self.counter += 1
         
-        state = torch.tensor(state, dtype = torch.float)
-        next_state = torch.tensor(next_state, dtype = torch.float)
-        action = torch.tensor(action, dtype = torch.long)
-        reward = torch.tensor(reward, dtype = torch.float)
+        state = torch.tensor(state, dtype = torch.float, device="cuda")
+        next_state = torch.tensor(next_state, dtype = torch.float, device="cuda")
+        action = torch.tensor(action, dtype = torch.long, device="cuda")
+        reward = torch.tensor(reward, dtype = torch.float, device="cuda")
         # (n, x)
 
         if len(state.shape) == 1:
@@ -65,31 +67,22 @@ class QTrainer:
             done = (done, )
             #print (done)
 
-        # 1: predicted Q values with current state
-        # TODO: Decide on lagging prediction or not
         
         if not (self.counter+49)%50:
             self.lagging_model = self.model
         
         pred = self.model(state)
-        
-        
-        #pred = self.model(state)
 
-        target = self.lagging_model(state)#pred.clone()
 
-        #print(len(done))
+        target = self.lagging_model(state) #pred.clone()
+
         for i in range(len(done)):
+
             Q_new = reward[i]
             if not done[i]: 
-                Q_new = reward[i] + self.gamma * torch.max(self.model(next_state[i]))
+                Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i])))) #/(1+self.gamma) # PROBLEM
 
             target[i][torch.argmax(action[i]).item()] = Q_new
-            
-
-        # 2: Q_new = r + y * max(next_predicted Q value) -> only if not done
-        # pred.clone()
-        # preds [argmax(action)] = Q_new
 
         self.optimizer.zero_grad()
         loss = self.criterion(target, pred)

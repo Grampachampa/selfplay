@@ -14,9 +14,10 @@ import alphabeta
 
 
 
-# TODO: REWORK reward/trick system!!!!!!!
-# TODO: make bot read from file - make opponent random past iteration
-# TODO: find a way to keep track of the game's score internally - at the moment only the trainer keeps track while the bot can not do so on it's own
+# TODO: silence plot, change while true to a certain number of iterations, save only last iter
+# TODO: CPU-> GPU
+# TODO: install pytorch on DAS
+# TODO: Figure out where to save files
 
 class SelfPlay (Bot):
     """Self-play reinforcement learning schnapsen god of destruction"""
@@ -32,7 +33,7 @@ class SelfPlay (Bot):
         self.epsilon = 1001
         self.min_epsilon = 10
         self.epsilon_decay = 1
-        self.gamma = 0.94 # discount rate < 1
+        self.gamma = 0.8 # discount rate < 1
         self.memory = deque(maxlen=self.MAX_MEMORY)
         self.model = Linear_QNet(173, 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
@@ -47,7 +48,7 @@ class SelfPlay (Bot):
         self.done = False
 
     def save(self):
-        print("Saved!")
+        #print("Saved!")
         self.model.save(iter=self.number_of_games, file_name = 'snapshot.pth')
 
 
@@ -69,7 +70,7 @@ class SelfPlay (Bot):
         #print(state.get_my_score().direct_points, state.get_opponent_score().direct_points)
         
         state_representation = create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda")
         moves = state.valid_moves()
 
         self.next_state0 = state_representation
@@ -106,7 +107,7 @@ class SelfPlay (Bot):
             move_index = random.randint(0,len(moves)-1)
             true_move_index = move_index
             final_move = moves[move_index]
-            print("(", end="")
+            #print("(", end="")
 
 
         # otherwise, it gets spicy
@@ -126,7 +127,7 @@ class SelfPlay (Bot):
         self.move0 = [0,0,0,0,0,0,0,0]
         self.move0[true_move_index] = 1
 
-        print(move_index, end="")
+        #print(move_index, end="")
         self.current_state0 = state_representation
 
 
@@ -236,12 +237,14 @@ class ModelReader(Bot):
     def __init__(self, snapshot_path):
         self.model = Linear_QNet(173, 256, 8)
         self.model.load_state_dict(torch.load(snapshot_path))
-        self.model.eval()
+        self.trick_number = 0
 
     def get_move(self, player_perspective: PlayerPerspective, leader_move: Optional[Move]) -> Move:
 
+        self.trick_number +=1
+
         state = player_perspective             
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None))
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda")
         moves = state.valid_moves()
         moves = self.move_order(moves)
 
@@ -497,7 +500,7 @@ def train():
 
     
     # Training all happens within the following while loop:
-    while True:
+    for i in range(100000):
 
         if main_bot.number_of_games < 51:
             adversary_bot = opponents[0]
@@ -520,7 +523,7 @@ def train():
             main_bot.reward = (winner_state.get_my_score().direct_points - loser_state.get_my_score().direct_points + 60)/(main_bot.trick_number+1)
             winner_declaration = True
             mywins += 1
-            print("\n", "True", end="")
+            #print("\n", "True", end="")
 
             
         else:
@@ -537,8 +540,10 @@ def train():
 
         main_bot.trick_number = 0
 
-
+        if not main_bot.number_of_games % 50:
+            main_bot.save()
         
+        '''
         print(points)
 
 
@@ -559,27 +564,27 @@ def train():
         plot( 
             plot_winrate_all_time, 
             plot_winrate_last_n, 
-          )
-
-        if not main_bot.number_of_games % 50:
-            main_bot.save()
-            #break
+          )'''
 
         
 
-
 if __name__ == "__main__":
     train()
-'''
-mine = 0
-yours = 0
 
+'''
+self_learning_bot = 0
+enemy = 0
+path = './selfplay_snapshots/generation6550_snapshot.pth'
+dirname = os.path.dirname(__file__)
+path = os.path.join(dirname, path)
+
+model = ModelReader(path)
 for i in range(1000):
-    path = './selfplay_snapshots/generation2000_snapshot.pth'
+    path = './selfplay_snapshots/generation6550_snapshot.pth'
     dirname = os.path.dirname(__file__)
     path = os.path.join(dirname, path)
-    model = ModelReader(path)
-    rando = RdeepBot(20, 5,random.Random(i))
+    
+    rando = RandBot(random.Random(i)) #RdeepBot(20, 5,random.Random(i))
     
     bots = [rando, model]
     random.shuffle(bots)
@@ -590,6 +595,12 @@ for i in range(1000):
     winner, points, score = engine.play_game(bots[0],bots[1], rng)
 
     if winner == model:
-        mine += 1
-    else: yours +=1
-print(mine, yours)'''
+        self_learning_bot += 1
+        #print("Model")
+        continue
+        
+    enemy +=1
+    #print("Enemy")
+
+print(self_learning_bot, enemy)
+print (model.trick_number/1000)'''
