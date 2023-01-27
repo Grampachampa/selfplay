@@ -58,7 +58,7 @@ class QTrainer:
         )
         action = torch.tensor(action, dtype = torch.long#, device="cuda"
         )
-        reward = torch.tensor(reward, dtype = torch.floa#t, device="cuda"
+        reward = torch.tensor(reward, dtype = torch.float#, device="cuda"
         )
         # (n, x)
 
