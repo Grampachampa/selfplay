@@ -267,9 +267,9 @@ class ModelReader(Bot):
             move_index = random.randint(0,len(moves)-1)
             true_move_index = move_index
             final_move = moves[move_index]
-            print("random move")
-        else:
-            print("not random")
+            #print("random move")
+        #else:
+            #print("not random")
            
         return final_move
 
@@ -513,6 +513,7 @@ def train():
     
     # Training all happens within the following while loop:
     for i in range(100000):
+        print(f"Iter: {i+1}")
 
         if main_bot.number_of_games < 51:
             adversary_bot = opponents[0]
