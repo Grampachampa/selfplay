@@ -247,7 +247,7 @@ class ModelReader(Bot):
         self.trick_number +=1
 
         state = player_perspective             
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda"   
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)#, device="cuda"   
         )
         moves = state.valid_moves()
         moves = self.move_order(moves)
