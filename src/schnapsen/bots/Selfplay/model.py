@@ -18,7 +18,7 @@ class Linear_QNet(nn.Module):
         #print (type(self.linear1))
 
     def forward(self, x: torch.Tensor):
-        x = x.float()
+        x = x.float().cuda()
         x = F.relu(self.linear1(x))
         x = self.linear2(x)
         x = self.linear3(x)
@@ -64,11 +64,14 @@ class QTrainer:
 
         if len(state.shape) == 1:
             # (1, x)
-            state = torch.unsqueeze(state, 0)
-            next_state = torch.unsqueeze(next_state, 0)
-            action = torch.unsqueeze(action, 0)
-            reward = torch.unsqueeze(reward, 0)
+            state = torch.unsqueeze(state, 0).cuda()
+            next_state = torch.unsqueeze(next_state, 0).cuda()
+            action = torch.unsqueeze(action, 0).cuda()
+            reward = torch.unsqueeze(reward, 0).cuda()
             done = (done, )
+
+            if isinstance(done, torch.tensor):
+                done = done.cuda()
             #print (done)
 
         
