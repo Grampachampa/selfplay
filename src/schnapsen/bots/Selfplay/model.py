@@ -75,7 +75,7 @@ class QTrainer:
         if not (self.counter+49)%50:
             self.lagging_model = self.model
         
-        pred = self.model(state)
+        pred = self.model(state.cuda())
 
 
         target = self.lagging_model(state) #pred.clone()
@@ -84,7 +84,7 @@ class QTrainer:
 
             Q_new = reward[i]
             if not done[i]: 
-                Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i])))) #/(1+self.gamma) # PROBLEM
+                Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i].cuda())))) #/(1+self.gamma) # PROBLEM
 
             target[i][torch.argmax(action[i]).item()] = Q_new
 

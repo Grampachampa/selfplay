@@ -254,7 +254,7 @@ class ModelReader(Bot):
 
                 
         # get prediction from model, convert it to index in list of moves, and return final move
-        prediction = self.model(state0)
+        prediction = self.model(state0.cuda())
             
         move_index = torch.argmax(prediction).item()
                         
