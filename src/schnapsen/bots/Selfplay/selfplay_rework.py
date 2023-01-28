@@ -35,7 +35,7 @@ class SelfPlay (Bot):
         self.epsilon_decay = 1
         self.gamma = 0.8 # discount rate < 1
         self.memory = deque(maxlen=self.MAX_MEMORY)
-        self.model = Linear_QNet(173, 256, 8)
+        self.model = Linear_QNet(173, 256, 8).to('cuda')
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         self.my_match_points = 7
         self.opponent_match_points = 7
@@ -236,7 +236,7 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 class ModelReader(Bot):
 
     def __init__(self, snapshot_path):
-        self.model = Linear_QNet(173, 256, 8)
+        self.model = Linear_QNet(173, 256, 8).to('cuda')
         self.model.load_state_dict(torch.load(snapshot_path))
         self.trick_number = 0
         self.epsilon = 1000

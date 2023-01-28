@@ -10,10 +10,10 @@ class Linear_QNet(nn.Module):
         super().__init__()
 
         #print (input_size, hidden_size, output_size)
-        self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.linear3 = nn.Linear(hidden_size, hidden_size)
-        self.linear4 = nn.Linear(hidden_size, output_size)
+        self.linear1 = nn.Linear(input_size, hidden_size).cuda()
+        self.linear2 = nn.Linear(hidden_size, hidden_size).cuda()
+        self.linear3 = nn.Linear(hidden_size, hidden_size).cuda()
+        self.linear4 = nn.Linear(hidden_size, output_size).cuda()
 
         #print (type(self.linear1))
 
@@ -44,7 +44,7 @@ class QTrainer:
     def __init__ (self, model, lr, gamma):
         self.lr = lr
         self.gamma = gamma
-        self.model = model
+        self.model = model.to('cuda')
         self.optimizer = optim.Adam(model.parameters(), lr = self.lr)
         self.criterion = nn.MSELoss()
         self.counter = 0
@@ -81,7 +81,7 @@ class QTrainer:
         pred = self.model(state.cuda())
 
 
-        target = self.lagging_model(state) #pred.clone()
+        target = self.lagging_model(state.cuda()) #pred.clone()
 
         for i in range(len(done)):
 
@@ -89,7 +89,7 @@ class QTrainer:
             if not done[i]: 
                 Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i].cuda())))) #/(1+self.gamma) # PROBLEM
 
-            target[i][torch.argmax(action[i]).item()] = Q_new
+            target[i][torch.argmax(action[i].cuda()).item()] = Q_new
 
         self.optimizer.zero_grad()
         loss = self.criterion(target, pred)
