@@ -70,7 +70,7 @@ class QTrainer:
             reward = torch.unsqueeze(reward, 0).cuda()
             done = (done, )
 
-            if isinstance(done, torch.tensor):
+            if isinstance(done, torch.Tensor):
                 done = done.cuda()
             #print (done)
 
