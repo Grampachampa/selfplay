@@ -19,10 +19,10 @@ class Linear_QNet(nn.Module):
 
     def forward(self, x: torch.Tensor):
         x = x.float().cuda()
-        x = F.relu(self.linear1(x))
-        x = self.linear2(x)
-        x = self.linear3(x)
-        x = self.linear4(x)
+        x = F.relu(self.linear1(x)).cuda()
+        x = self.linear2(x).cuda()
+        x = self.linear3(x).cuda()
+        x = self.linear4(x).cuda()
         return x
     
     def save(self, iter,  file_name = 'snapshot.pth'):
