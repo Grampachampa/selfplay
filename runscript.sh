@@ -7,8 +7,8 @@
 #SBATCH -C Titan
 #SBATCH --gres=gpu:1
 
-# module load cuda10.0/toolkit
-# module load cuDNN/cuda10.0
+# module load cuda10.0/toolkit/10.0.130
+# module load cuDNN/cuda10.0/7.4
 
 
 source $HOME/.bashrc
