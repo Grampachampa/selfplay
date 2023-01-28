@@ -11,9 +11,6 @@ module load cuda10.0/toolkit
 module load cuDNN/cuda10.0
 
 
-module load cuda10.0/toolkit
-module load cuDNN/cuda10.0
-
 source $HOME/.bashrc
 conda activate
 
