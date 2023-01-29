@@ -35,7 +35,7 @@ class SelfPlay (Bot):
         self.epsilon_decay = 1
         self.gamma = 0.8 # discount rate < 1
         self.memory = deque(maxlen=self.MAX_MEMORY)
-        self.model = Linear_QNet(173, 256, 8).to('cuda')
+        self.model = Linear_QNet(173, 256, 8)
         self.trainer = QTrainer(self.model, lr = self.LR, gamma = self.gamma)
         self.my_match_points = 7
         self.opponent_match_points = 7
@@ -70,7 +70,7 @@ class SelfPlay (Bot):
         #print(state.get_my_score().direct_points, state.get_opponent_score().direct_points)
         
         state_representation = create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None) , device="cuda"
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
         )
         moves = state.valid_moves()
 
@@ -236,7 +236,7 @@ class TrainingEngine(SchnapsenGamePlayEngine):
 class ModelReader(Bot):
 
     def __init__(self, snapshot_path):
-        self.model = Linear_QNet(173, 256, 8).to('cuda')
+        self.model = Linear_QNet(173, 256, 8)
         self.model.load_state_dict(torch.load(snapshot_path))
         self.trick_number = 0
         self.epsilon = 1000
@@ -247,14 +247,14 @@ class ModelReader(Bot):
         self.trick_number +=1
 
         state = player_perspective             
-        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None), device="cuda"   
+        state0 = torch.tensor(create_state_and_actions_vector_representation(state, leader_move=leader_move, follower_move=None)
         )
         moves = state.valid_moves()
         moves = self.move_order(moves)
 
                 
         # get prediction from model, convert it to index in list of moves, and return final move
-        prediction = self.model(state0.cuda())
+        prediction = self.model(state0)
             
         move_index = torch.argmax(prediction).item()
                         
@@ -263,10 +263,10 @@ class ModelReader(Bot):
 
         final_move = moves[move_index]
 
-        if random.randint(0,self.max_epsilon) < self.epsilon:
-            move_index = random.randint(0,len(moves)-1)
-            true_move_index = move_index
-            final_move = moves[move_index]
+        #if random.randint(0,self.max_epsilon) < self.epsilon:
+         #   move_index = random.randint(0,len(moves)-1)
+          #  true_move_index = move_index
+           # final_move = moves[move_index]
             #print("random move")
         #else:
             #print("not random")

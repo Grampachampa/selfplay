@@ -1,0 +1,11 @@
+  "Bully V RandBot": 5345
+  "Defense V RandBot": 4931
+  "Rdeep V RandBot": 8308
+  "TibBot V RandBot": 5484
+  
+
+  "SelfPlay V Defense": 4666
+  "SelfPlay V RandBot": 4595
+  "SelfPlay V Bully": 4071
+  "SelfPlay V TibBot": 4169
+  "SelfPlay V Rdeep": 1360

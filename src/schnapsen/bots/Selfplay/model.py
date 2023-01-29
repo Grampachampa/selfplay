@@ -10,19 +10,19 @@ class Linear_QNet(nn.Module):
         super().__init__()
 
         #print (input_size, hidden_size, output_size)
-        self.linear1 = nn.Linear(input_size, hidden_size).cuda()
-        self.linear2 = nn.Linear(hidden_size, hidden_size).cuda()
-        self.linear3 = nn.Linear(hidden_size, hidden_size).cuda()
-        self.linear4 = nn.Linear(hidden_size, output_size).cuda()
+        self.linear1 = nn.Linear(input_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        self.linear3 = nn.Linear(hidden_size, hidden_size)
+        self.linear4 = nn.Linear(hidden_size, output_size)
 
         #print (type(self.linear1))
 
     def forward(self, x: torch.Tensor):
-        x = x.float().cuda()
-        x = F.relu(self.linear1(x)).cuda()
-        x = self.linear2(x).cuda()
-        x = self.linear3(x).cuda()
-        x = self.linear4(x).cuda()
+        x = x.float()
+        x = F.relu(self.linear1(x))
+        x = self.linear2(x)
+        x = self.linear3(x)
+        x = self.linear4(x)
         return x
     
     def save(self, iter,  file_name = 'snapshot.pth'):
@@ -44,7 +44,7 @@ class QTrainer:
     def __init__ (self, model, lr, gamma):
         self.lr = lr
         self.gamma = gamma
-        self.model = model.to('cuda')
+        self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr = self.lr)
         self.criterion = nn.MSELoss()
         self.counter = 0
@@ -52,36 +52,36 @@ class QTrainer:
     def train_step(self, state, action, reward, next_state, done):
         self.counter += 1
         
-        state = torch.tensor(state, dtype = torch.float, device="cuda"
+        state = torch.tensor(state, dtype = torch.float
         )
-        next_state = torch.tensor(next_state, dtype = torch.float, device="cuda"
+        next_state = torch.tensor(next_state, dtype = torch.float
         )
-        action = torch.tensor(action, dtype = torch.long, device="cuda"
+        action = torch.tensor(action, dtype = torch.long
         )
-        reward = torch.tensor(reward, dtype = torch.float, device="cuda"
+        reward = torch.tensor(reward, dtype = torch.float
         )
         # (n, x)
 
         if len(state.shape) == 1:
             # (1, x)
-            state = torch.unsqueeze(state, 0).cuda()
-            next_state = torch.unsqueeze(next_state, 0).cuda()
-            action = torch.unsqueeze(action, 0).cuda()
-            reward = torch.unsqueeze(reward, 0).cuda()
+            state = torch.unsqueeze(state, 0)
+            next_state = torch.unsqueeze(next_state, 0)
+            action = torch.unsqueeze(action, 0)
+            reward = torch.unsqueeze(reward, 0)
             done = (done, )
 
             if isinstance(done, torch.Tensor):
-                done = done.cuda()
+                done = done
             #print (done)
 
         
         if not (self.counter+49)%50:
             self.lagging_model = self.model
         
-        pred = self.model(state.cuda())
+        pred = self.model(state)
 
 
-        target = self.lagging_model(state.cuda()) #pred.clone()
+        target = self.lagging_model(state) #pred.clone()
 
         for i in range(len(done)):
 
