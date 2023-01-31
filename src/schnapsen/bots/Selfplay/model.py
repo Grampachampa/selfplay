@@ -9,13 +9,11 @@ class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
 
-        #print (input_size, hidden_size, output_size)
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear3 = nn.Linear(hidden_size, hidden_size)
         self.linear4 = nn.Linear(hidden_size, output_size)
 
-        #print (type(self.linear1))
 
     def forward(self, x: torch.Tensor):
         x = x.float()
@@ -52,18 +50,12 @@ class QTrainer:
     def train_step(self, state, action, reward, next_state, done):
         self.counter += 1
         
-        state = torch.tensor(state, dtype = torch.float
-        )
-        next_state = torch.tensor(next_state, dtype = torch.float
-        )
-        action = torch.tensor(action, dtype = torch.long
-        )
-        reward = torch.tensor(reward, dtype = torch.float
-        )
-        # (n, x)
+        state = torch.tensor(state, dtype = torch.float)
+        next_state = torch.tensor(next_state, dtype = torch.float)
+        action = torch.tensor(action, dtype = torch.long)
+        reward = torch.tensor(reward, dtype = torch.float)
 
         if len(state.shape) == 1:
-            # (1, x)
             state = torch.unsqueeze(state, 0)
             next_state = torch.unsqueeze(next_state, 0)
             action = torch.unsqueeze(action, 0)
@@ -72,7 +64,6 @@ class QTrainer:
 
             if isinstance(done, torch.Tensor):
                 done = done
-            #print (done)
 
         
         if not (self.counter+49)%50:
@@ -87,7 +78,7 @@ class QTrainer:
 
             Q_new = reward[i]
             if not done[i]: 
-                Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i].cuda())))) #/(1+self.gamma) # PROBLEM
+                Q_new = (reward[i] + (self.gamma * torch.max(self.model(next_state[i]))))
 
             target[i][torch.argmax(action[i].cuda()).item()] = Q_new
 
